@@ -10,7 +10,7 @@
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-const rule = require('../lib/rules/role-supports-aria-props')
+const rule = require('../lib/rules/a11y-role-supports-aria-props')
 const RuleTester = require('eslint').RuleTester
 
 const ruleTester = new RuleTester({
@@ -27,7 +27,7 @@ function getErrorMessage(attribute, role) {
   return `The attribute ${attribute} is not supported by the role ${role}.`
 }
 
-ruleTester.run('role-supports-aria-props', rule, {
+ruleTester.run('a11y-role-supports-aria-props', rule, {
   valid: [
     {code: '<Foo bar />'},
     {code: '<div />'},
@@ -35,8 +35,11 @@ ruleTester.run('role-supports-aria-props', rule, {
     {code: '<div role />'},
     {code: '<div role="presentation" {...props} />'},
     {code: '<Foo.Bar baz={true} />'},
+    {code: '<Foo as="a" href={url} aria-label={`Issue #${title}`} />'},
     {code: '<Link href="#" aria-checked />'},
-
+    // Don't try to evaluate expression
+    {code: '<Box aria-labelledby="some-id" role={role} />'},
+    {code: '<Box aria-labelledby="some-id" as={isNavigationOpen ? "div" : "nav"} />'},
     // IMPLICIT ROLE TESTS
     // A TESTS - implicit role is `link`
     {code: '<a href="#" aria-expanded />'},
@@ -57,9 +60,6 @@ ruleTester.run('role-supports-aria-props', rule, {
     {code: '<a href="#" aria-owns />'},
     {code: '<a href="#" aria-relevant />'},
 
-    // this will have global
-    {code: '<a aria-checked />'},
-
     // AREA TESTS - implicit role is `link`
     {code: '<area href="#" aria-expanded />'},
     {code: '<area href="#" aria-atomic />'},
@@ -77,30 +77,6 @@ ruleTester.run('role-supports-aria-props', rule, {
     {code: '<area href="#" aria-live />'},
     {code: '<area href="#" aria-owns />'},
     {code: '<area href="#" aria-relevant />'},
-
-    // this will have global
-    {code: '<area aria-checked />'},
-
-    // LINK TESTS - implicit role is `link`
-    {code: '<link href="#" aria-expanded />'},
-    {code: '<link href="#" aria-atomic />'},
-    {code: '<link href="#" aria-busy />'},
-    {code: '<link href="#" aria-controls />'},
-    {code: '<link href="#" aria-describedby />'},
-    {code: '<link href="#" aria-disabled />'},
-    {code: '<link href="#" aria-dropeffect />'},
-    {code: '<link href="#" aria-flowto />'},
-    {code: '<link href="#" aria-grabbed />'},
-    {code: '<link href="#" aria-hidden />'},
-    {code: '<link href="#" aria-haspopup />'},
-    {code: '<link href="#" aria-label />'},
-    {code: '<link href="#" aria-labelledby />'},
-    {code: '<link href="#" aria-live />'},
-    {code: '<link href="#" aria-owns />'},
-    {code: '<link href="#" aria-relevant />'},
-
-    // this will have global
-    {code: '<link aria-checked />'},
 
     // this will have role of `img`
     {code: '<img alt="foobar" aria-busy />'},
@@ -344,20 +320,25 @@ ruleTester.run('role-supports-aria-props', rule, {
     {code: '<datalist aria-expanded />'},
     {code: '<div role="heading" aria-level />'},
     {code: '<div role="heading" aria-level="1" />'},
+    {code: '<link href="#" aria-expanded />'}, // link maps to nothing
   ],
 
   invalid: [
     // implicit basic checks
+    {
+      code: '<area aria-checked />',
+      errors: [getErrorMessage('aria-checked', 'generic')],
+    },
+    {
+      code: '<a aria-checked />',
+      errors: [getErrorMessage('aria-checked', 'generic')],
+    },
     {
       code: '<a href="#" aria-checked />',
       errors: [getErrorMessage('aria-checked', 'link')],
     },
     {
       code: '<area href="#" aria-checked />',
-      errors: [getErrorMessage('aria-checked', 'link')],
-    },
-    {
-      code: '<link href="#" aria-checked />',
       errors: [getErrorMessage('aria-checked', 'link')],
     },
     {
@@ -394,7 +375,7 @@ ruleTester.run('role-supports-aria-props', rule, {
     },
     {
       code: '<body aria-expanded />',
-      errors: [getErrorMessage('aria-expanded', 'document')],
+      errors: [getErrorMessage('aria-expanded', 'generic')],
     },
     {
       code: '<li aria-expanded />',
@@ -414,6 +395,10 @@ ruleTester.run('role-supports-aria-props', rule, {
     },
     {
       code: '<section aria-expanded />',
+      errors: [getErrorMessage('aria-expanded', 'generic')],
+    },
+    {
+      code: '<section aria-label="something" aria-expanded />',
       errors: [getErrorMessage('aria-expanded', 'region')],
     },
     {
@@ -481,10 +466,6 @@ ruleTester.run('role-supports-aria-props', rule, {
       errors: [getErrorMessage('aria-expanded', 'toolbar')],
     },
     {
-      code: '<link href="#" aria-invalid />',
-      errors: [getErrorMessage('aria-invalid', 'link')],
-    },
-    {
       code: '<area href="#" aria-invalid />',
       errors: [getErrorMessage('aria-invalid', 'link')],
     },
@@ -501,12 +482,17 @@ ruleTester.run('role-supports-aria-props', rule, {
       errors: [getErrorMessage('aria-labelledby', 'generic')],
     },
     {
-      code: '<div aria-label />',
-      errors: [getErrorMessage('aria-label', 'generic')],
-    },
-    {
       code: '<div aria-labelledby />',
       errors: [getErrorMessage('aria-labelledby', 'generic')],
+    },
+    // Determines role from literal `as` prop.
+    {
+      code: '<Box as="span" aria-labelledby />',
+      errors: [getErrorMessage('aria-labelledby', 'generic')],
+    },
+    {
+      code: '<p role="generic" aria-label />',
+      errors: [getErrorMessage('aria-label', 'generic')],
     },
   ],
 })
